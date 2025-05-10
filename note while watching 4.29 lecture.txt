@@ -1,0 +1,5 @@
+I am slightly confused about H2 and Hinf
+You can calculate for a basic system A B C and D but I think what really matters is designing a controller and an observer and finding Acl Bcl Ccl and Dcl, then computing H2 or Hinf of that.
+But maybe actually H2 controller design creates those Acl Bcl Ccl and Dcl that do minimize H2? 
+And Hinf. 
+Okay....

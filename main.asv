@@ -1,0 +1,109 @@
+clear; close all;
+filepath = "state_space_models\Basic-Set_5.xlsx";
+%filepath = "state_space_models\Group-2_10.xlsx";
+A = readmatrix(filepath, "Sheet", "A");
+B = readmatrix(filepath, "Sheet", "B");
+C = readmatrix(filepath, "Sheet", "C");
+D = readmatrix(filepath, "Sheet", "D");
+
+% if separating out fuel flow from other inputs
+B1 = B(:, 1);
+B2 = B(:, 2:5);
+C1 = C;
+D11 = D(:, 1);
+D12 = D(:, 2:5);
+
+
+%% luenberger observer
+alphaC = 2; betaC = 10000;
+K = pole_placement_controller(A, B, alphaC, betaC);
+
+alphaO = 10; betaO = 1000;
+L = pole_placement_observer(A, C, alphaO, betaO);
+%plot_eigs(A,A+L*C)
+[sys, A_Luen] = luenberger(A, B, C, D, K, L);
+
+% Simulation parameters
+t = linspace(0, 10, 1000)';
+m = size(B,2); % number of inputs
+u = zeros(length(t), m);  % initialize control inputs
+
+% Apply a step input on all channels between t=1s and t=2s
+u(100:200, :) = 1;
+
+sys_true = ss(A, B, C, D);
+[y_true, ~, x_true] = lsim(sys_true, u, t);
+
+[y_obs, ~, x_obs_full] = lsim(sys, u, t);  % measured output from true system
+input_obs = [u y_obs];  % input to observer: [control input, measured output]
+
+% [y_combined, ~, x_combined] = lsim(sys, input_obs, t);  % sys = ss(A_Luen, ...)
+% 
+% % x_combined = [x_hat; x_error] or [x; x_hat], depending on how A_Luen is set up
+% x_est = x_combined(:, size(A,1)+1:end);  % Extract estimated states (x_hat)
+% 
+% % Plot true states
+% figure;
+% plot(t, x_true);
+% xlabel('Time'); ylabel('True States');
+% legend('x1','x2','x3','x4','x5');
+% title('True States');
+% 
+% % Plot estimated states
+% figure;
+% plot(t, x_est);
+% xlabel('Time'); ylabel('Estimated States (x hat)');
+% legend('x1','x2','x3','x4','x5');
+% title('Estimated States');
+% 
+% % Plot error
+% figure;
+% plot(t, x_true - x_est);
+% xlabel('Time'); ylabel('Estimation Error (x - x_hat)');
+% legend('x1','x2','x3','x4','x5');
+% title('Estimation Error');
+
+%% hinf control and nice plots
+% [g, F, sys_cl] = hinfcontrol(A,B1,B2,C1,D11,D12);
+% 
+% % Time vector and disturbance input
+% t = 0:0.01:10;
+% w = zeros(size(t));  % step input for fuel flow
+% w(100:end) = 300;
+% 
+% % Simulate state trajectory under disturbance input (open-loop)
+% sys_ol = ss(A, B1, eye(size(A)), 0);
+% [~, ~, x_states] = lsim(sys_ol, w, t);
+% 
+% % Compute control inputs: u = F x
+% u_control = (F * x_states')';  % dimensions: time x 4
+% 
+% % --- Plot Control Inputs + Disturbance ---
+% figure;
+% plot(t, u_control, 'LineWidth', 1.5); hold on;
+% plot(t, w, 'k--', 'LineWidth', 1.2);  % plot disturbance
+% title('Control Inputs and Disturbance Input (Fuel Flow)');
+% xlabel('Time (s)');
+% ylabel('Amplitude');
+% legend({'u_1','u_2','u_3','u_4','fuel flow (w)'}, 'Location', 'best');
+% grid on;
+% 
+% % --- Simulate Closed-loop Output Response ---
+% [y_cl, ~, ~] = lsim(sys_cl, w, t);  % system maps w → y
+% 
+% % --- Plot Outputs ---
+% figure;
+% subplot(3,2,1);
+% plot(t, w, 'k', 'LineWidth', 1.5);
+% title('Disturbance Input (w)');
+% ylabel('w');
+% grid on;
+% 
+% for i = 1:5
+%     subplot(3,2,i+1);
+%     plot(t, y_cl(:, i), 'LineWidth', 1.5);
+%     title(['Output y_', num2str(i)]);
+%     ylabel(['y_', num2str(i)]);
+%     xlabel('Time (s)');
+%     grid on;
+% end
